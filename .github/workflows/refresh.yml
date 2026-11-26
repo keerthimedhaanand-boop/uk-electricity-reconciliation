@@ -1,0 +1,29 @@
+name: Weekly data refresh
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"   # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: pytest -q
+      - name: Fetch the last 28 days
+        run: python run.py --start "$(date -u -d '29 days ago' +%F)" --end "$(date -u -d 'yesterday' +%F)"
+      - name: Commit refreshed data
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add data outputs
+          git commit -m "Weekly data refresh" || echo "No changes"
+          git push
