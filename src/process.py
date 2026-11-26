@@ -50,8 +50,13 @@ def validate(df: pd.DataFrame, name: str, key=("start_utc",)) -> list[str]:
     if dups:
         issues.append(f"{name}: {dups} duplicate rows")
     neg = df.loc[df["mw"] < 0]
-    if name.startswith("BMRS"):  # interconnectors can be negative (exports)
-        neg = neg.loc[~neg["fuel"].str.startswith("INT")]
+    if name.startswith("BMRS"):
+        # Expected negatives: interconnectors (exports) and pumped storage (pumping load).
+        expected = neg["fuel"].str.startswith("INT") | (neg["fuel"] == "PS")
+        if expected.any():
+            issues.append(f"{name}: {int(expected.sum())} negative values from interconnector "
+                          "exports or pumped-storage pumping (expected, not errors)")
+        neg = neg.loc[~expected]
     if len(neg):
         issues.append(f"{name}: {len(neg)} negative generation values")
     return issues
